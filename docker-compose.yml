@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  # Servicio de base de datos PostgreSQL
+  postgres:
+    image: postgres:13
+    container_name: impnac_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: tu_contraseña
+      POSTGRES_DB: impuestos_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./setup_database.sql:/docker-entrypoint-initdb.d/setup_database.sql
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - impnac_network
+
+  # Servicio de servidor web con PHP
+  webserver:
+    build: .
+    container_name: impnac_webserver
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html/
+    networks:
+      - impnac_network
+
+# Volúmenes para persistencia de datos
+volumes:
+  postgres_data:
+
+# Red para comunicación entre contenedores
+networks:
+  impnac_network:
+    driver: bridge

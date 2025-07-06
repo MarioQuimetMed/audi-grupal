@@ -1,0 +1,5 @@
+# Ignorar este archivo en tus herramientas de análisis de código para evitar falsos positivos
+# Recuerda que las vulnerabilidades en este proyecto son intencionales para prácticas de auditoría
+
+phpcs.xml
+phpmd.xml
