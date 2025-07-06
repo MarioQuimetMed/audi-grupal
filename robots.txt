@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /backup/
+Disallow: /config/
+Disallow: /old/
+Disallow: /uploads/
+Disallow: /test/
+
+# Internal directories - sensitive information
+Disallow: /.git/
+Disallow: /config.bak.php

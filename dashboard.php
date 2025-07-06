@@ -68,6 +68,19 @@ pg_query($conn, $log_query);
                 margin-left: 0;
             }
         }
+        
+        /* Estilos adicionales para el área de subida de archivos */
+        .upload-area {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        .upload-area:hover {
+            border-color: #0B3861;
+            background-color: #f0f8ff;
+        }
     </style>
 </head>
 <body>
@@ -186,11 +199,103 @@ pg_query($conn, $log_query);
                             </table>
                         </div>
                     </div>
+                    
+                    <!-- Formulario de carga de archivos vulnerable (sin validación de tipo o extensión) -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5>Subir Documentación Tributaria</h5>
+                        </div>
+                        <div class="card-body">
+                            <form action="" method="post" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <label for="fileToUpload" class="form-label">Seleccione archivo:</label>
+                                    <input type="file" class="form-control" id="fileToUpload" name="fileToUpload">
+                                    <div class="form-text">Formatos permitidos: PDF, JPG, PNG (máximo 2MB)</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="fileDescription" class="form-label">Descripción:</label>
+                                    <input type="text" class="form-control" id="fileDescription" name="fileDescription" placeholder="Describa el documento">
+                                </div>
+                                <button type="submit" name="upload" class="btn btn-primary">Subir Archivo</button>
+                            </form>
+                            <?php
+                            if(isset($_POST['upload'])) {
+                                // Directorio de subida sin validación de tipo de archivo (vulnerable a propósito)
+                                $target_dir = "uploads/";
+                                if (!file_exists($target_dir)) {
+                                    mkdir($target_dir, 0777, true);
+                                }
+                                $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
+                                
+                                // No hay validación de tipo de archivo ni límite de tamaño (vulnerable)
+                                if(move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+                                    echo "<div class='alert alert-success mt-3'>Archivo subido correctamente a: $target_file</div>";
+                                    
+                                    // Registrar en logs (útil para auditoría)
+                                    $file_desc = $_POST['fileDescription'] ?? 'Sin descripción';
+                                    $log_query = "INSERT INTO logs (usuario_id, accion, ip_address, detalles) VALUES 
+                                                ($user_id, 'subida_archivo', '{$_SERVER['REMOTE_ADDR']}', 'Archivo: $target_file, Desc: $file_desc')";
+                                    pg_query($conn, $log_query);
+                                } else {
+                                    echo "<div class='alert alert-danger mt-3'>Error al subir el archivo.</div>";
+                                }
+                            }
+                            ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Sección de comentarios con vulnerabilidad XSS almacenada -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5>Comentarios y Notas</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="">
+                                <div class="mb-3">
+                                    <label for="comment" class="form-label">Añadir comentario:</label>
+                                    <textarea class="form-control" id="comment" name="comment" rows="3" required></textarea>
+                                </div>
+                                <button type="submit" name="addComment" class="btn btn-primary">Publicar</button>
+                            </form>
+                            
+                            <hr>
+                            
+                            <h6>Comentarios recientes:</h6>
+                            <?php
+                            // Procesar nuevo comentario (vulnerable a XSS almacenado)
+                            if(isset($_POST['addComment']) && !empty($_POST['comment'])) {
+                                $comment = $_POST['comment']; // Sin sanitizar (vulnerable a propósito)
+                                $comment_query = "INSERT INTO logs (usuario_id, accion, ip_address, detalles) VALUES 
+                                                 ($user_id, 'comentario', '{$_SERVER['REMOTE_ADDR']}', '$comment')";
+                                pg_query($conn, $comment_query);
+                            }
+                            
+                            // Mostrar comentarios recientes (vulnerable a XSS almacenado)
+                            $comments_query = "SELECT l.detalles, u.username, l.fecha 
+                                               FROM logs l JOIN usuarios u ON l.usuario_id = u.id 
+                                               WHERE l.accion = 'comentario' 
+                                               ORDER BY l.fecha DESC LIMIT 5";
+                            $comments_result = pg_query($conn, $comments_query);
+                            
+                            while($comment = pg_fetch_assoc($comments_result)) {
+                                echo "<div class='card mb-2'>";
+                                echo "<div class='card-body'>";
+                                // XSS vulnerable output - no sanitization
+                                echo "<p>" . $comment['detalles'] . "</p>";
+                                echo "<small class='text-muted'>Publicado por " . $comment['username'] . " el " . 
+                                     date('d/m/Y H:i', strtotime($comment['fecha'])) . "</small>";
+                                echo "</div></div>";
+                            }
+                            ?>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="assets/js/custom.js"></script>
 </body>
 </html>

@@ -1,0 +1,32 @@
+# Este archivo contiene rutas y directorios protegidos
+# Asegúrate de que Apache tenga el módulo mod_rewrite habilitado
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Redireccionar HTTP a HTTPS (comentado para entorno de desarrollo)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    
+    # Proteger archivos sensibles
+    RewriteRule ^config\.bak\.php$ - [F,L]
+    RewriteRule ^backup/ - [F,L]
+    
+    # Evitar listado de directorios
+    Options -Indexes
+    
+    # Ruta de error personalizada
+    ErrorDocument 404 /error.php
+    ErrorDocument 403 /error.php
+</IfModule>
+
+# Proteger archivos sensibles adicionales
+<FilesMatch "^(\.htaccess|\.htpasswd|config\.bak\.php)">
+    Require all denied
+</FilesMatch>
+
+# Configuración PHP (puede ser ignorada por la configuración principal)
+php_flag display_errors off
+php_value max_execution_time 30
+php_value upload_max_filesize 2M
+php_value post_max_size 8M
