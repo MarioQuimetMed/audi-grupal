@@ -1,4 +1,9 @@
 <?php
+// Configuración temporal para depuración
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 session_start();
 require_once 'db.php';
 
@@ -8,22 +13,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
     
-    // Consulta simple sin prevenir inyección SQL (para demostración de vulnerabilidad)
-    $query = "SELECT id, username, password_hash FROM usuarios WHERE username = '$username'";
-    $result = pg_query($conn, $query);
+    // Verificar que la conexión está establecida
+    if (!$conn) {
+        error_log("Error: Conexión a base de datos no disponible en login.php");
+        die("Error de conexión a la base de datos");
+    }
+    
+    // Consulta usando sentencias preparadas para prevenir inyección SQL
+    $query = "SELECT id, username, password_hash FROM usuarios WHERE username = $1";
+    $result = pg_query_params($conn, $query, array($username));
+    
+    // Verificar si hubo error en la consulta
+    if (!$result) {
+        error_log("Error en consulta SQL: " . pg_last_error($conn));
+        file_put_contents(__DIR__ . '/query_error.log', date('[Y-m-d H:i:s] ') . "Error en consulta: " . pg_last_error($conn) . " - Usuario: $username\n", FILE_APPEND);
+    }
     
     if ($result && pg_num_rows($result) > 0) {
         $user = pg_fetch_assoc($result);
         
-        // Verificación simple de contraseña (hash no seguro para demostrar vulnerabilidad)
+        // Temporalmente usando MD5 para la verificación de contraseñas
+        // Nota: Esto es solo para compatibilidad con los hashes existentes
         if (md5($password) === $user['password_hash']) {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             
-            // Registrar el inicio de sesión
+            // Registrar el inicio de sesión usando sentencias preparadas
             $log_query = "INSERT INTO logs (usuario_id, accion, ip_address) VALUES 
-                          ({$user['id']}, 'inicio_sesion', '{$_SERVER['REMOTE_ADDR']}')";
-            pg_query($conn, $log_query);
+                          ($1, $2, $3)";
+            pg_query_params($conn, $log_query, array($user['id'], 'inicio_sesion', $_SERVER['REMOTE_ADDR']));
             
             header('Location: dashboard.php');
             exit;

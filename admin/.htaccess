@@ -1,0 +1,10 @@
+# Denegar todo acceso
+
+Deny from all
+
+# Este directorio es privado y no debe ser accesible vía web
+
+<Files \*>
+Order allow,deny
+Deny from all
+</Files>

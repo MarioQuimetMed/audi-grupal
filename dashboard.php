@@ -11,15 +11,14 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
 
-// Obtener información de usuario (simulada)
-$query = "SELECT * FROM usuarios WHERE id = $user_id";
-$result = pg_query($conn, $query);
+// Obtener información de usuario usando sentencias preparadas
+$query = "SELECT * FROM usuarios WHERE id = $1";
+$result = pg_query_params($conn, $query, array($user_id));
 $user = pg_fetch_assoc($result);
 
-// Registrar visita al dashboard
-$log_query = "INSERT INTO logs (usuario_id, accion, ip_address) VALUES 
-              ($user_id, 'visita_dashboard', '{$_SERVER['REMOTE_ADDR']}')";
-pg_query($conn, $log_query);
+// Registrar visita al dashboard usando sentencias preparadas
+$log_query = "INSERT INTO logs (usuario_id, accion, ip_address) VALUES ($1, $2, $3)";
+pg_query_params($conn, $log_query, array($user_id, 'visita_dashboard', $_SERVER['REMOTE_ADDR']));
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -220,24 +219,50 @@ pg_query($conn, $log_query);
                             </form>
                             <?php
                             if(isset($_POST['upload'])) {
-                                // Directorio de subida sin validación de tipo de archivo (vulnerable a propósito)
+                                // Directorio de subida con validación de tipo de archivo
                                 $target_dir = "uploads/";
                                 if (!file_exists($target_dir)) {
-                                    mkdir($target_dir, 0777, true);
+                                    mkdir($target_dir, 0755, true);
                                 }
-                                $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
                                 
-                                // No hay validación de tipo de archivo ni límite de tamaño (vulnerable)
-                                if(move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+                                // Validaciones de seguridad
+                                $fileType = strtolower(pathinfo($_FILES["fileToUpload"]["name"], PATHINFO_EXTENSION));
+                                $maxFileSize = 2 * 1024 * 1024; // 2MB máximo
+                                $allowedTypes = array('pdf', 'jpg', 'jpeg', 'png');
+                                $newFileName = uniqid() . '.' . $fileType; // Nombre aleatorio para evitar sobrescrituras
+                                $target_file = $target_dir . $newFileName;
+                                
+                                // Validaciones
+                                $uploadOk = 1;
+                                $errorMsg = "";
+                                
+                                // Comprobar tamaño del archivo
+                                if ($_FILES["fileToUpload"]["size"] > $maxFileSize) {
+                                    $errorMsg = "El archivo es demasiado grande. Máximo 2MB permitido.";
+                                    $uploadOk = 0;
+                                }
+                                
+                                // Comprobar tipo de archivo
+                                if (!in_array($fileType, $allowedTypes)) {
+                                    $errorMsg = "Solo se permiten archivos PDF, JPG y PNG.";
+                                    $uploadOk = 0;
+                                }
+                                
+                                // Si todo está bien, subir el archivo
+                                if ($uploadOk == 1) {
+                                    if(move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
                                     echo "<div class='alert alert-success mt-3'>Archivo subido correctamente a: $target_file</div>";
                                     
-                                    // Registrar en logs (útil para auditoría)
-                                    $file_desc = $_POST['fileDescription'] ?? 'Sin descripción';
+                                    // Registrar en logs (útil para auditoría) usando sentencias preparadas
+                                    $file_desc = htmlspecialchars($_POST['fileDescription'] ?? 'Sin descripción');
                                     $log_query = "INSERT INTO logs (usuario_id, accion, ip_address, detalles) VALUES 
-                                                ($user_id, 'subida_archivo', '{$_SERVER['REMOTE_ADDR']}', 'Archivo: $target_file, Desc: $file_desc')";
-                                    pg_query($conn, $log_query);
+                                                ($1, $2, $3, $4)";
+                                    pg_query_params($conn, $log_query, array($user_id, 'subida_archivo', $_SERVER['REMOTE_ADDR'], "Archivo: $target_file, Desc: $file_desc"));
                                 } else {
                                     echo "<div class='alert alert-danger mt-3'>Error al subir el archivo.</div>";
+                                }
+                                } else {
+                                    echo "<div class='alert alert-danger mt-3'>$errorMsg</div>";
                                 }
                             }
                             ?>
@@ -262,12 +287,12 @@ pg_query($conn, $log_query);
                             
                             <h6>Comentarios recientes:</h6>
                             <?php
-                            // Procesar nuevo comentario (vulnerable a XSS almacenado)
+                            // Procesar nuevo comentario (sanitizado contra XSS)
                             if(isset($_POST['addComment']) && !empty($_POST['comment'])) {
-                                $comment = $_POST['comment']; // Sin sanitizar (vulnerable a propósito)
+                                $comment = htmlspecialchars($_POST['comment'], ENT_QUOTES, 'UTF-8'); // Sanitizar para evitar XSS
                                 $comment_query = "INSERT INTO logs (usuario_id, accion, ip_address, detalles) VALUES 
-                                                 ($user_id, 'comentario', '{$_SERVER['REMOTE_ADDR']}', '$comment')";
-                                pg_query($conn, $comment_query);
+                                                 ($1, $2, $3, $4)";
+                                pg_query_params($conn, $comment_query, array($user_id, 'comentario', $_SERVER['REMOTE_ADDR'], $comment));
                             }
                             
                             // Mostrar comentarios recientes (vulnerable a XSS almacenado)
@@ -280,9 +305,9 @@ pg_query($conn, $log_query);
                             while($comment = pg_fetch_assoc($comments_result)) {
                                 echo "<div class='card mb-2'>";
                                 echo "<div class='card-body'>";
-                                // XSS vulnerable output - no sanitization
-                                echo "<p>" . $comment['detalles'] . "</p>";
-                                echo "<small class='text-muted'>Publicado por " . $comment['username'] . " el " . 
+                                // Sanitizamos la salida para prevenir XSS
+                                echo "<p>" . htmlspecialchars($comment['detalles'], ENT_QUOTES, 'UTF-8') . "</p>";
+                                echo "<small class='text-muted'>Publicado por " . htmlspecialchars($comment['username'], ENT_QUOTES, 'UTF-8') . " el " . 
                                      date('d/m/Y H:i', strtotime($comment['fecha'])) . "</small>";
                                 echo "</div></div>";
                             }

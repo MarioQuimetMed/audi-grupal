@@ -1,0 +1,32 @@
+# Configuración de base de datos para entorno de producción
+# IMPORTANTE: Este archivo NO debe estar en el servidor de producción
+# Última actualización: 01/05/2025
+
+DB_HOST=postgres.production.local
+DB_PORT=5432
+DB_NAME=impuestos_prod
+DB_USER=admin_prod
+DB_PASS=Pr0d@dm1n2025#Secure!
+DB_SCHEMA=public
+
+# Credenciales de usuario admin
+ADMIN_USER=administrador
+ADMIN_PASSWORD=ImPuEsToS2025!
+
+# Configuración de SMTP
+SMTP_HOST=smtp.impuestos.gob.bo
+SMTP_USER=notificaciones@impuestos.gob.bo
+SMTP_PASS=N0t1f1c@c10n3s2025
+SMTP_PORT=587
+
+# Llaves de API y secretos
+JWT_SECRET=93fc39d2a9be518e4e6c3e63164f34fe8c305a2f59d1eae86d37758d3c
+API_KEY=AIzaSyC5XQzD1vwdZGwMkEIEsVJJCMNJ9S_GYT4
+
+# Rutas de sistema
+LOG_PATH=/var/log/impuestos
+BACKUP_PATH=/backup/postgres/daily
+
+# NO CAMBIAR ESTAS CREDENCIALES - SE USAN PARA CONEXIÓN LEGACY
+LEGACY_DB_USER=legacy_admin
+LEGACY_DB_PASS=l3g4cy2023

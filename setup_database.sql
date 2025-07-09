@@ -48,9 +48,10 @@ CREATE TABLE facturas (
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insertar usuarios de prueba (contraseñas vulnerables a propósito)
--- Contraseña 'admin123' = md5('admin123') = '0192023a7bbd73250516f069df18b500'
--- Contraseña 'user123' = md5('user123') = '6ad14ba9986e3615423dfca256d04e3f'
+-- Insertar usuarios de prueba con md5 (para compatibilidad temporal)
+-- Hasta que actualicemos completamente a bcrypt, usaremos hashes MD5 temporalmente
+-- Contraseña 'admin123' = 0192023a7bbd73250516f069df18b500 (MD5)
+-- Contraseña 'user123' = 6ad14ba9986e3615423dfca256d04e3f (MD5)
 
 INSERT INTO usuarios (username, password_hash, nombre, email, nit, tipo)
 VALUES 

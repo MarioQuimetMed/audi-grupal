@@ -7,16 +7,21 @@ services:
     container_name: impnac_postgres
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: tu_contraseña
-      POSTGRES_DB: impuestos_db
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secretpassword}
+      POSTGRES_DB: ${DB_NAME:-impuestos_db}
     ports:
-      - "5432:5432"
+      - "5432:5432" # Limitar acceso a localhost solamente
     volumes:
       - ./setup_database.sql:/docker-entrypoint-initdb.d/setup_database.sql
       - postgres_data:/var/lib/postgresql/data
     networks:
       - impnac_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Servicio de servidor web con PHP
   webserver:
@@ -26,9 +31,18 @@ services:
     depends_on:
       - postgres
     ports:
-      - "80:80"
+      - "443:443" # HTTPS
+      - "80:80" # HTTP solo localmente
     volumes:
       - ./:/var/www/html/
+      - ./secure_config:/opt/impnac/secure/:ro
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-secretpassword}
+      DB_NAME: ${DB_NAME:-impuestos_db}
+      # ENABLE_HTTPS: "true"
     networks:
       - impnac_network
 

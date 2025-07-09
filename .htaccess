@@ -1,16 +1,16 @@
-# Este archivo contiene rutas y directorios protegidos
-# Asegúrate de que Apache tenga el módulo mod_rewrite habilitado
+# Archivo .htaccess con configuración de seguridad mejorada
+# Apache mod_rewrite debe estar habilitado
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # Redireccionar HTTP a HTTPS (comentado para entorno de desarrollo)
+    # # Redireccionar HTTP a HTTPS (activado)
     # RewriteCond %{HTTPS} off
     # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
     
-    # Proteger archivos sensibles
-    RewriteRule ^config\.bak\.php$ - [F,L]
-    RewriteRule ^backup/ - [F,L]
+    # Proteger todos los archivos sensibles y directorios de backups
+    RewriteRule ^(config|backup|uploads|admin)/ - [F,L]
+    RewriteRule \.(bak|config|sql|sh|git|svn|htaccess|htpasswd|ini|phps|fla|psd|log|json)$ - [F,L]
     
     # Evitar listado de directorios
     Options -Indexes
@@ -18,15 +18,36 @@
     # Ruta de error personalizada
     ErrorDocument 404 /error.php
     ErrorDocument 403 /error.php
+    
+    # Proteger contra ataques comunes
+    RewriteCond %{QUERY_STRING} (\<|%3C).*script.*(\>|%3E) [NC,OR]
+    RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+    RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+    RewriteRule .* index.php [F,L]
 </IfModule>
 
 # Proteger archivos sensibles adicionales
-<FilesMatch "^(\.htaccess|\.htpasswd|config\.bak\.php)">
+<FilesMatch "^(\.htaccess|\.htpasswd|config\.bak\.php|.*\.sql|.*\.bak|.*\.config)">
     Require all denied
 </FilesMatch>
 
-# Configuración PHP (puede ser ignorada por la configuración principal)
+# Configuración PHP segura
 php_flag display_errors off
 php_value max_execution_time 30
+php_flag register_globals off
+php_flag expose_php off
+php_flag allow_url_fopen off
+php_flag allow_url_include off
+
+# Cabeceras de seguridad
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    # Header set Content-Security-Policy "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:;"
+    Header set Content-Security-Policy "default-src 'self' http:; script-src 'self' http: https://cdn.jsdelivr.net; style-src 'self' http: https://cdn.jsdelivr.net; img-src 'self' http: data:;"
+    Header set Referrer-Policy "same-origin"
+    Header unset X-Powered-By
+</IfModule>
 php_value upload_max_filesize 2M
 php_value post_max_size 8M

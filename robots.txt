@@ -1,11 +1,25 @@
 User-agent: *
+# Deshabilitar indexación de todo el sitio en producción
+Disallow: /
+
+# Directorios protegidos
 Disallow: /admin/
 Disallow: /backup/
 Disallow: /config/
-Disallow: /old/
+Disallow: /secure_config/
 Disallow: /uploads/
-Disallow: /test/
-
-# Internal directories - sensitive information
+Disallow: /api/
 Disallow: /.git/
-Disallow: /config.bak.php
+
+# Archivos sensibles
+Disallow: /*.bak$
+Disallow: /*.config$
+Disallow: /*.sql$
+Disallow: /*.log$
+Disallow: /*.sh$
+Disallow: /*.php~
+Disallow: /*.conf$
+Disallow: /*config.*
+
+# Nota: Este robots.txt no debe ser considerado como medida de seguridad
+# La seguridad real se implementa con controles de acceso adecuados
